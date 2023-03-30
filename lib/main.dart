@@ -147,6 +147,7 @@ class _MainScreenState extends State<MainScreen> {
                 //     await _audioHandler.resume();
                 //   },
                 // ),
+
                 StreamBuilder<bool>(
                   stream: _audioHandler.playbackState
                       .map((state) => state.playing)
@@ -157,7 +158,9 @@ class _MainScreenState extends State<MainScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        _button(Icons.replay_10_rounded, _audioHandler.rewind),
+                        _button(Icons.skip_previous, _audioHandler.rewind),
+                        _button(Icons.replay_10_rounded,
+                            _audioHandler.skipToPrevious),
                         if (playing)
                           CircleAvatar(
                               backgroundColor: Colors.white,
@@ -172,6 +175,7 @@ class _MainScreenState extends State<MainScreen> {
                           ),
                         _button(Icons.forward_10_rounded,
                             (_audioHandler.fastForward)),
+                        _button(Icons.skip_next, (_audioHandler.skipToNext)),
                       ],
                     );
                   },
@@ -185,7 +189,10 @@ class _MainScreenState extends State<MainScreen> {
                       children: const [
                         // IconButton(
                         //   onPressed: null,
-                        //   icon: Icon(Icons.speed_sharp),
+                        //   icon: Icon(
+                        //     Icons.shutter_speed_outlined,
+                        //     color: Colors.white,
+                        //   ),
                         // ),
                         Text(
                           '1.0x',
@@ -214,26 +221,121 @@ class _MainScreenState extends State<MainScreen> {
                     ),
                   ],
                 ),
-                    // Text(
-                    //   'Play List',
-                    //   style: TextStyle(color: Colors.white),
-                    // ),
+                const SizedBox(
+                  height: 20,
+                ),
                 Column(
-                  children: const [
-                    IconButton(
-                      onPressed: null,
-                      icon: Icon(
-                        Icons.featured_play_list,
-                        color: Colors.white,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        showModalBottomSheet(
+                            context: context,
+                            backgroundColor: const Color(0xff1c164f),
+                            shape: const RoundedRectangleBorder(
+                              borderRadius: BorderRadius.only(
+                                topLeft: Radius.circular(10.0),
+                                topRight: Radius.circular(10.0),
+                              ),
+                            ),
+                            builder: (BuildContext context) {
+                              return SingleChildScrollView(
+                                child: Column(
+                                  children: [
+                                    Align(
+                                      alignment: Alignment.topRight,
+                                      child: IconButton(
+                                        onPressed: (() {
+                                          Navigator.pop(context);
+                                        }),
+                                        icon: const Icon(
+                                          Icons.arrow_drop_down,
+                                          size: 30,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                    const Text(
+                                      'Play List',
+                                      style: TextStyle(color: Colors.white),
+                                    ),
+                                    const SizedBox(
+                                      height: 30,
+                                    ),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceAround,
+                                      children: [
+                                        Title(
+                                          color: Colors.white,
+                                          child: const Text(
+                                            'Title 1',
+                                            style:
+                                                TextStyle(color: Colors.white),
+                                          ),
+                                        ),
+                                        StreamBuilder<bool>(
+                                          stream: _audioHandler.playbackState
+                                              .map((state) => state.playing)
+                                              .distinct(),
+                                          builder: (context, snapshot) {
+                                            final playing =
+                                                snapshot.data ?? false;
+                                            return Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.center,
+                                              children: [
+                                                if (playing)
+                                                  CircleAvatar(
+                                                      backgroundColor:
+                                                          Colors.white,
+                                                      radius: 15,
+                                                      child: _ppbutton(
+                                                          Icons.pause,
+                                                          _audioHandler.pause))
+                                                else
+                                                  CircleAvatar(
+                                                    backgroundColor:
+                                                        Colors.pink,
+                                                    radius: 15,
+                                                    child: _ppbutton(
+                                                        Icons.play_arrow,
+                                                        _audioHandler.play),
+                                                  ),
+                                              ],
+                                            );
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                    SingleChildScrollView(
+                                      scrollDirection: Axis.horizontal,
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: const [],
+                                      ),
+                                    ),
+                                    const SizedBox(
+                                      height: 300,
+                                    ),
+                                  ],
+                                ),
+                              );
+                            });
+                      },
+                      icon: const Icon(Icons.featured_play_list),
+                      label: const Text("Play List"),
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size(350, 50),
                       ),
-                    ),
-                    Text(
-                      'Play List',
-                      style: TextStyle(color: Colors.white),
-                    ),
+                    )
                   ],
                 ),
-
+                const SizedBox(
+                  height: 40,
+                ),
                 // A seek bar.
                 // StreamBuilder<MediaState>(
                 //   stream: _mediaStateStream,
@@ -278,6 +380,13 @@ class _MainScreenState extends State<MainScreen> {
   IconButton _pbutton(IconData iconData, VoidCallback onPressed) => IconButton(
         icon: Icon(iconData),
         iconSize: 30.0,
+        color: Colors.black,
+        onPressed: onPressed,
+      );
+
+  IconButton _ppbutton(IconData iconData, VoidCallback onPressed) => IconButton(
+        icon: Icon(iconData),
+        iconSize: 15.0,
         color: Colors.black,
         onPressed: onPressed,
       );
