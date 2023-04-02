@@ -1,11 +1,10 @@
 import 'dart:async';
 
 import 'package:audio_service/audio_service.dart';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
-import 'omain.dart';
+import 'Allmain.dart';
 
 late AudioHandler _audioHandler;
 
@@ -18,25 +17,28 @@ Future<void> main() async {
       androidNotificationOngoing: true,
     ),
   );
-  runApp(const Wmain());
+  runApp(const AudioPage());
 }
-// class MyAudioHandler extends BaseAudioHandler
-//     with QueueHandler, // mix in default queue callback implementations
-//     SeekHandler { // mix in default seek callback implementations
 
-//   // The most common callbacks:
-//   Future<void> play() async {
-//     // All 'play' requests from all origins route to here. Implement this
-//     // callback to start playing audio appropriate to your app. e.g. music.
-//   }
-//   Future<void> pause() async {}
-//   Future<void> stop() async {}
-//   Future<void> seek(Duration position) async {}
-//   Future<void> skipToQueueItem(int i) async {}
-// }
+class MyAudioHandler extends BaseAudioHandler
+    with
+        QueueHandler, // mix in default queue callback implementations
+        SeekHandler {
+  // mix in default seek callback implementations
 
-class Wmain extends StatelessWidget {
-  const Wmain({Key? key}) : super(key: key);
+  // The most common callbacks:
+  Future<void> play() async {
+    // All 'play' requests from all origins route to here. Implement this
+    // callback to start playing audio appropriate to your app. e.g. music.
+  }
+  Future<void> pause() async {}
+  Future<void> stop() async {}
+  Future<void> seek(Duration position) async {}
+  Future<void> skipToQueueItem(int i) async {}
+}
+
+class AudioPage extends StatelessWidget {
+  const AudioPage({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -57,10 +59,11 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  // final audioPlayer = AudioPlayer();
-  // //bool audioHandler = false;
-  // Duration duration = Duration.zero;
-  // Duration position = Duration.zero;
+  final audioPlayer = AudioPlayer();
+  //bool audioHandler = false;
+  bool isPlaying = false;
+  Duration duration = Duration.zero;
+  Duration position = Duration.zero;
 
   // @override
   // void initState() {
