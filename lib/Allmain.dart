@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:kabbik/searchpage.dart';
 import 'package:kabbik/subscribe.dart';
 import 'package:kabbik/main.dart';
+import 'audiomedia.dart';
 import 'bookrqst.dart';
 import 'editpage.dart';
 
@@ -24,7 +25,7 @@ class MyApp extends StatelessWidget {
         brightness: Brightness.dark,
         primaryColor: const Color.fromARGB(255, 255, 255, 255),
       ),
-      home: const EditPage(),
+      home: const AudioMedia(),
     );
   }
 }

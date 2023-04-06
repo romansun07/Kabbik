@@ -1,10 +1,16 @@
 import 'dart:async';
-
+import 'dart:math';
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
+
+import 'package:audio_session/audio_session.dart';
+import 'package:flutter/services.dart';
+
+import 'package:rxdart/rxdart.dart';
 import 'Allmain.dart';
+import 'audiomedia.dart';
 
 late AudioHandler _audioHandler;
 
@@ -59,11 +65,11 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  final audioPlayer = AudioPlayer();
-  //bool audioHandler = false;
-  bool isPlaying = false;
-  Duration duration = Duration.zero;
-  Duration position = Duration.zero;
+  // final audioPlayer = AudioPlayer();
+  // //bool audioHandler = false;
+  // bool isPlaying = false;
+  // Duration duration = Duration.zero;
+  // Duration position = Duration.zero;
 
   // @override
   // void initState() {
@@ -84,6 +90,40 @@ class _MainScreenState extends State<MainScreen> {
   //   });
   //   super.initState();
   // }
+
+  final player = AudioPlayer();
+  bool isPlaying = false;
+  Duration duration = Duration.zero;
+  Duration position = Duration.zero;
+
+  String formatTime(int seconds) {
+    return '${(Duration(seconds: seconds))}'.split('.')[0].padLeft(8, '0');
+  }
+
+  @override
+  void initState() {
+    super.initState();
+
+    player.playerStateStream.listen((state) {
+      if (state.playing != isPlaying) {
+        setState(() {
+          isPlaying = state.playing;
+        });
+      }
+    });
+
+    player.durationStream.listen((newDuration) {
+      setState(() {
+        duration = newDuration!;
+      });
+    });
+
+    player.positionStream.listen((newPosition) {
+      setState(() {
+        position = newPosition;
+      });
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -140,6 +180,7 @@ class _MainScreenState extends State<MainScreen> {
                 //     return Text(mediaItem?.title ?? '');
                 //   },
                 // ),
+
                 // Slider(
                 //   min: 0,
                 //   max: duration.inSeconds.toDouble(),
@@ -147,9 +188,30 @@ class _MainScreenState extends State<MainScreen> {
                 //   onChanged: (value) async {
                 //     final position = Duration(seconds: value.toInt());
                 //     await _audioHandler.seek(position);
-                //     await _audioHandler.resume();
+                //     // await _audioHandler.resume();
                 //   },
                 // ),
+
+                // Slider(
+                //   min: 0,
+                //   max: duration.inSeconds.toDouble(),
+                //   value: position.inSeconds.toDouble(),
+                //   onChanged: (value) {
+                //     final position = Duration(seconds: value.toInt());
+                //     player.seek(position);
+                //     //player.resume();
+                //   },
+                // ),
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(formatTime(position.inSeconds)),
+                      Text(formatTime((duration - position).inSeconds)),
+                    ],
+                  ),
+                ),
 
                 StreamBuilder<bool>(
                   stream: _audioHandler.playbackState
@@ -161,25 +223,49 @@ class _MainScreenState extends State<MainScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        _button(Icons.skip_previous, _audioHandler.rewind),
-                        _button(Icons.replay_10_rounded,
-                            _audioHandler.skipToPrevious),
-                        if (playing)
-                          CircleAvatar(
-                              backgroundColor: Colors.white,
-                              radius: 25,
-                              child: _pbutton(Icons.pause, _audioHandler.pause))
-                        else
-                          CircleAvatar(
-                            backgroundColor: Colors.white,
-                            radius: 25,
-                            child:
-                                _pbutton(Icons.play_arrow, _audioHandler.play),
-                          ),
-                        _button(Icons.forward_10_rounded,
-                            (_audioHandler.fastForward)),
-                        _button(Icons.skip_next, (_audioHandler.skipToNext)),
+                        Row(
+                          children: [
+                            _button(Icons.skip_previous, _audioHandler.rewind),
+                            _button(Icons.replay_10_rounded,
+                                _audioHandler.skipToPrevious),
+                            if (playing)
+                              CircleAvatar(
+                                  backgroundColor: Colors.white,
+                                  radius: 25,
+                                  child: _pbutton(
+                                      Icons.pause, _audioHandler.pause))
+                            else
+                              CircleAvatar(
+                                backgroundColor: Colors.white,
+                                radius: 25,
+                                child: _pbutton(
+                                    Icons.play_arrow, _audioHandler.play),
+                              ),
+                            _button(Icons.forward_10_rounded,
+                                (_audioHandler.fastForward)),
+                            _button(
+                                Icons.skip_next, (_audioHandler.skipToNext)),
+                          ],
+                        ),
                       ],
+                    );
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(
+                    Icons.volume_up,
+                    color: Colors.white,
+                  ),
+                  onPressed: () {
+                    showSliderDialog(
+                      context: context,
+                      title: "Adjust volume",
+                      divisions: 10,
+                      min: 0.0,
+                      max: 1.0,
+                      value: player.volume,
+                      stream: player.volumeStream,
+                      onChanged: player.setVolume,
                     );
                   },
                 ),
@@ -188,23 +274,68 @@ class _MainScreenState extends State<MainScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
+                    StreamBuilder<double>(
+                      stream: player.speedStream,
+                      builder: (context, snapshot) => IconButton(
+                        icon: Text(
+                          "${snapshot.data?.toStringAsFixed(1)}x",
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        onPressed: () {
+                          showSliderDialog(
+                            context: context,
+                            title: "Adjust speed",
+                            divisions: 6,
+                            min: -0.0,
+                            max: 2,
+                            value: player.speed,
+                            stream: player.speedStream,
+                            onChanged: player.setSpeed,
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
                     Column(
                       children: const [
-                        // IconButton(
-                        //   onPressed: null,
-                        //   icon: Icon(
-                        //     Icons.shutter_speed_outlined,
-                        //     color: Colors.white,
+                        // Text(
+                        //   '1.0x',
+                        //   style: TextStyle(color: Colors.white),
+                        // ),
+                        // Text(
+                        //   'Speed',
+                        //   style: TextStyle(color: Colors.white),
+                        // )
+
+                        // StreamBuilder<double>(
+                        //   stream: _audioHandler.,
+                        //   builder: (context, snapshot) => IconButton(
+                        //     icon: Text("${snapshot.data?.toStringAsFixed(1)}x",
+                        //         style: const TextStyle(
+                        //             fontWeight: FontWeight.bold)),
+                        //     onPressed: () {
+                        //       showSliderDialog(
+                        //         context: context,
+                        //         title: "Adjust speed",
+                        //         divisions: 10,
+                        //         min: 0.5,
+                        //         max: 1.5,
+                        //         value: player.speed,
+                        //         stream: player.speedStream,
+                        //         onChanged: player.setSpeed,
+                        //       );
+                        //     },
                         //   ),
                         // ),
-                        Text(
-                          '1.0x',
-                          style: TextStyle(color: Colors.white),
-                        ),
-                        Text(
-                          'Speed',
-                          style: TextStyle(color: Colors.white),
-                        )
                       ],
                     ),
                     Column(
@@ -418,9 +549,6 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
 
   /// Initialise our audio handler.
   AudioPlayerHandler() {
-    // So that our clients (the Flutter UI and the system notification) know
-    // what state to display, here we set up our audio handler to broadcast all
-    // playback state changes as they happen via playbackState...
     _player.playbackEventStream.map(_transformEvent).pipe(playbackState);
     // ... and also the current media item via mediaItem.
     mediaItem.add(_item);
@@ -428,11 +556,6 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
     // Load the player.
     _player.setAudioSource(AudioSource.uri(Uri.parse(_item.id)));
   }
-
-  // In this simple example, we handle only 4 actions: play, pause, seek and
-  // stop. Any button press from the Flutter UI, notification, lock screen or
-  // headset will be routed through to these 4 methods so that you can handle
-  // your audio playback logic in one place.
 
   @override
   Future<void> play() => _player.play();
@@ -446,11 +569,6 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
   @override
   Future<void> stop() => _player.stop();
 
-  /// Transform a just_audio event into an audio_service state.
-  ///
-  /// This method is used from the constructor. Every event received from the
-  /// just_audio player will be transformed into an audio_service state so that
-  /// it can be broadcast to audio_service clients.
   PlaybackState _transformEvent(PlaybackEvent event) {
     return PlaybackState(
       controls: [
@@ -480,3 +598,192 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
     );
   }
 }
+
+
+
+
+
+
+
+
+
+class SeekBar extends StatefulWidget {
+  final Duration duration;
+  final Duration position;
+  final Duration bufferedPosition;
+  final ValueChanged<Duration>? onChanged;
+  final ValueChanged<Duration>? onChangeEnd;
+
+  const SeekBar({
+    Key? key,
+    required this.duration,
+    required this.position,
+    required this.bufferedPosition,
+    this.onChanged,
+    this.onChangeEnd,
+  }) : super(key: key);
+
+  @override
+  SeekBarState createState() => SeekBarState();
+}
+
+class SeekBarState extends State<SeekBar> {
+  double? _dragValue;
+  late SliderThemeData _sliderThemeData;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    _sliderThemeData = SliderTheme.of(context).copyWith(
+      trackHeight: 2.0,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        SliderTheme(
+          data: _sliderThemeData.copyWith(
+            thumbShape: HiddenThumbComponentShape(),
+            activeTrackColor: Colors.blue.shade100,
+            inactiveTrackColor: Colors.grey.shade300,
+          ),
+          child: ExcludeSemantics(
+            child: Slider(
+              min: 0.0,
+              max: widget.duration.inMilliseconds.toDouble(),
+              value: min(widget.bufferedPosition.inMilliseconds.toDouble(),
+                  widget.duration.inMilliseconds.toDouble()),
+              onChanged: (value) {
+                setState(() {
+                  _dragValue = value;
+                });
+                if (widget.onChanged != null) {
+                  widget.onChanged!(Duration(milliseconds: value.round()));
+                }
+              },
+              onChangeEnd: (value) {
+                if (widget.onChangeEnd != null) {
+                  widget.onChangeEnd!(Duration(milliseconds: value.round()));
+                }
+                _dragValue = null;
+              },
+            ),
+          ),
+        ),
+        SliderTheme(
+          data: _sliderThemeData.copyWith(
+            inactiveTrackColor: Colors.transparent,
+          ),
+          child: Slider(
+            min: 0.0,
+            max: widget.duration.inMilliseconds.toDouble(),
+            value: min(_dragValue ?? widget.position.inMilliseconds.toDouble(),
+                widget.duration.inMilliseconds.toDouble()),
+            onChanged: (value) {
+              setState(() {
+                _dragValue = value;
+              });
+              if (widget.onChanged != null) {
+                widget.onChanged!(Duration(milliseconds: value.round()));
+              }
+            },
+            onChangeEnd: (value) {
+              if (widget.onChangeEnd != null) {
+                widget.onChangeEnd!(Duration(milliseconds: value.round()));
+              }
+              _dragValue = null;
+            },
+          ),
+        ),
+        Positioned(
+          right: 16.0,
+          bottom: 0.0,
+          child: Text(
+              RegExp(r'((^0*[1-9]\d*:)?\d{2}:\d{2})\.\d+$')
+                      .firstMatch("$_remaining")
+                      ?.group(1) ??
+                  '$_remaining',
+              style: Theme.of(context).textTheme.bodySmall),
+        ),
+      ],
+    );
+  }
+
+  Duration get _remaining => widget.duration - widget.position;
+}
+
+class HiddenThumbComponentShape extends SliderComponentShape {
+  @override
+  Size getPreferredSize(bool isEnabled, bool isDiscrete) => Size.zero;
+
+  @override
+  void paint(
+    PaintingContext context,
+    Offset center, {
+    required Animation<double> activationAnimation,
+    required Animation<double> enableAnimation,
+    required bool isDiscrete,
+    required TextPainter labelPainter,
+    required RenderBox parentBox,
+    required SliderThemeData sliderTheme,
+    required TextDirection textDirection,
+    required double value,
+    required double textScaleFactor,
+    required Size sizeWithOverflow,
+  }) {}
+}
+
+class PositionData {
+  final Duration position;
+  final Duration bufferedPosition;
+  final Duration duration;
+
+  PositionData(this.position, this.bufferedPosition, this.duration);
+}
+
+void showSliderDialog({
+  required BuildContext context,
+  required String title,
+  required int divisions,
+  required double min,
+  required double max,
+  String valueSuffix = '',
+  // TODO: Replace these two by ValueStream.
+  required double value,
+  required Stream<double> stream,
+  required ValueChanged<double> onChanged,
+}) {
+  showDialog<void>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text(title, textAlign: TextAlign.center),
+      content: StreamBuilder<double>(
+        stream: stream,
+        builder: (context, snapshot) => SizedBox(
+          height: 100.0,
+          child: Column(
+            children: [
+              Text('${snapshot.data?.toStringAsFixed(1)}$valueSuffix',
+                  style: const TextStyle(
+                      fontFamily: 'Fixed',
+                      fontWeight: FontWeight.bold,
+                      fontSize: 24.0)),
+              Slider(
+                divisions: divisions,
+                min: min,
+                max: max,
+                value: snapshot.data ?? value,
+                onChanged: onChanged,
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+T? ambiguate<T>(T? value) => value;
